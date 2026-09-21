@@ -268,6 +268,12 @@ func get_look_dir() -> Vector3:
 func get_visual() -> CharacterVisual:
 	return _visual
 
+func get_main_camera() -> Camera3D:
+	return _camera
+
+func get_rig() -> PlayerCameraRig:
+	return _rig
+
 func get_head() -> Node3D:
 	return _head
 

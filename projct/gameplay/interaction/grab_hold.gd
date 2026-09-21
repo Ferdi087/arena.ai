@@ -12,8 +12,12 @@ var twist_delta: float = 0.0                # angeforderter Roll/Yaw (Q/E)
 var strength: float = 1.0                   # 1.0 normaler Spieler
 var network_id: int = 1                     # Peer des Halters (Authority-Check)
 
+var position_override: Callable = Callable()
+
 func update_socket() -> void:
-	if socket_local_node != null and is_instance_valid(socket_local_node):
+	if position_override.is_valid():
+		socket_global = position_override.call()
+	elif socket_local_node != null and is_instance_valid(socket_local_node):
 		socket_global = socket_local_node.global_position
 
 func _init(p_player: Node = null, p_grip: Vector3 = Vector3.ZERO, p_socket: Node3D = null, p_strength: float = 1.0, p_peer: int = 1) -> void:

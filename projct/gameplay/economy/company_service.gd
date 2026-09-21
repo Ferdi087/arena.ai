@@ -77,6 +77,11 @@ func add_reputation(delta_rep: float) -> void:
 	EventBus.reputation_changed.emit(data.reputation, data.reputation - before)
 	Saves.mark_dirty()
 
+func apply_hq_quality_drift(delta_rep: float) -> void:
+	## #16: ein schäbiges HQ drückt die Reputation sanft, ein feines hebt sie.
+	## Kein Instant-Jump: wird bei Änderung aufgerufen (BuildMode) + täglich.
+	add_reputation(clampf(delta_rep, -2.0, 3.5))
+
 func add_xp(amount: float) -> void:
 	data.xp += amount
 	var needed := level_xp_needed(data.company_level)
@@ -214,6 +219,41 @@ func hire(employee: EmployeeData) -> bool:
 	employees_changed.emit()
 	Saves.mark_dirty()
 	return true
+
+# --------------------------------------------------------------- Bewerber --
+
+var candidates: Array[EmployeeData] = []
+const CANDIDATE_NAMES: Array[String] = ["Heike", "Rolf", "Swen", "Monika", "Uwe", "Katrin", "Dirk", "Ines", "Maik", "Sabrina", "Tino", "Rene", "Andy", "Conny", "Svenja", "Norbert"]
+
+func refresh_candidates(seed_value: int) -> void:
+	## Deterministischer Bewerber-Pool pro Tag (3 Leute) – speicherbar, damit
+	## Laden denselben Bewerbermarkt zeigt.
+	var rnd := RandomNumberGenerator.new()
+	rnd.seed = seed_value
+	candidates.clear()
+	for i in 3:
+		var e := EmployeeData.new()
+		e.id = StringName("emp_%d_%d" % [seed_value % 100000, i])
+		e.first_name = CANDIDATE_NAMES[rnd.randi_range(0, CANDIDATE_NAMES.size() - 1)]
+		for stat_v in ["speed", "strength", "accuracy", "intelligence", "reliability", "stress_resistance", "driving_skill", "furniture_knowledge"]:
+			e.set(stat_v, clampf(rnd.randf_range(0.25, 0.95), 0.0, 1.0))
+		var avg := (e.speed + e.strength + e.accuracy + e.reliability) * 0.25
+		e.wage_per_hour = 8.0 + avg * 22.0
+		match rnd.randi_range(0, 3):
+			0: e.specialty = &"carry"
+			1: e.specialty = &"sweep"
+			2: e.specialty = &"drive"
+			3: e.specialty = &"sort"
+		e.traits = ["schläft im Truck", "hört Schlager auf Repeat", "singt beim Schleppen", "hat Angst vor Kugelfischen", "zählt jedes Möbelstück laut", "trägt immer Sonnenbrille"][rnd.randi_range(0, 5)]
+		candidates.append(e)
+
+func hire_candidate(index: int) -> bool:
+	if index < 0 or index >= candidates.size():
+		return false
+	if hire(candidates[index]):
+		candidates.remove_at(index)
+		return true
+	return false
 
 func fire(index: int) -> void:
 	if index >= 0 and index < employees.size():

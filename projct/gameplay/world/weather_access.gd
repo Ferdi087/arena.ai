@@ -47,6 +47,12 @@ static func time_of_day() -> float:
 		return 12.0
 	return float(w.call("hour"))
 
+static func gust(strength_scale: float = 10.0) -> Vector3:
+	var w := weather_node()
+	if w == null or not w.has_method("gust_vector"):
+		return Vector3.ZERO
+	return w.call("gust_vector", strength_scale)
+
 static func is_night() -> bool:
 	var t := time_of_day()
 	return t < 6.0 or t > 20.5

@@ -16,6 +16,10 @@ const MAX_SLOTS := 3
 var active_slot: int = 0
 var _contributors: Array[Node] = []
 var _dirty: bool = false
+## Sektionen aus einem Load, deren Contributor die Szene noch nicht betreten
+## hat (z. B. Welt-Section vom Menü aus geladen): werden beim Registrieren
+## nachgereicht – kein Datenverlust bei Szenenwechsel-Loadflow.
+var pending_sections: Dictionary = {}
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
@@ -36,6 +40,10 @@ func register_contributor(node: Node) -> void:
 		return
 	if not _contributors.has(node):
 		_contributors.append(node)
+	var key: String = String(node.get("save_key")) if node.get("save_key") != null else String(node.name)
+	if pending_sections.has(key) and node.has_method("apply_save_data"):
+		node.call("apply_save_data", pending_sections[key])
+		pending_sections.erase(key)
 
 func unregister_contributor(node: Node) -> void:
 	_contributors.erase(node)
@@ -68,12 +76,19 @@ func build_save_dict() -> Dictionary:
 func apply_save_dict(raw: Dictionary) -> void:
 	var migrated := migrate(raw)
 	var sections: Dictionary = migrated.get("sections", {})
+	pending_sections.clear()
+	var applied_keys: Array[String] = []
 	for c in _contributors:
 		if is_instance_valid(c) and c.has_method("load_from_dict"):
 			var key: String = c.get("save_key") if c.get("save_key") != null else c.name
 			var sub: Dictionary = sections.get(key, {})
 			if not sub.is_empty():
 				c.load_from_dict(sub)
+				applied_keys.append(key)
+	# Alles, was niemand übernommen hat -> pending für spätere Contributors
+	for k in sections.keys():
+		if String(k) not in applied_keys:
+			pending_sections[String(k)] = sections[k]
 	# Settings global anwenden
 	var settings_section: Dictionary = sections.get("settings", {})
 	if not settings_section.is_empty():
