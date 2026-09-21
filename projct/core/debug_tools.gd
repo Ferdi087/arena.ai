@@ -95,6 +95,9 @@ func _build_text() -> String:
 
 # ------------------------------------------------------------------- Cheats --
 
+func debug_enabled_in_hud() -> bool:
+	return enabled and _dev_enabled()
+
 func set_money(amount: float) -> void:
 	if _dev_enabled():
 		Company.money = amount
